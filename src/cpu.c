@@ -1,6 +1,7 @@
 
 #include "cpu.h"
 #include "mem.h"
+#include <stdio.h>
 
 static int calc(struct pcb_t * proc) {
 	return ((unsigned long)proc & 0UL);
@@ -47,12 +48,14 @@ static int write(
 int run(struct pcb_t * proc) {
 	/* Check if Program Counter point to the proper instruction */
 	if (proc->pc >= proc->code->size) {
+		printf("PC is full\n");
 		return 1;
 	}
 	
 	struct inst_t ins = proc->code->text[proc->pc];
 	proc->pc++;
 	int stat = 1;
+	printf("Process: pc = %d, code-size = %d\n", proc->pc, proc->code->size);
 	switch (ins.opcode) {
 	case CALC:
 		stat = calc(proc);
@@ -72,6 +75,7 @@ int run(struct pcb_t * proc) {
 	default:
 		stat = 1;
 	}
+	
 	return stat;
 
 }
