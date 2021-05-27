@@ -21,12 +21,11 @@ struct pcb_t * dequeue(struct queue_t * q) {
 	 * in the queue [q] and remember to remove it from q
 	 * */
 	if(q->size == 0) {
-		printf("Queue is empty !\n");
 		return NULL;
 	}
-	int index;
+	int index = 0;
 	struct pcb_t* temp = q->proc[0];
-	for(int i = 0; i < q->size; ++i) {
+	for(int i = 1; i < q->size; ++i) {
 		if(temp->priority < q->proc[i]->priority) {
 			temp = q->proc[i];
 			index = i;
@@ -35,8 +34,8 @@ struct pcb_t * dequeue(struct queue_t * q) {
 	for(int j = index; j < q->size - 1; j++) {
 		q->proc[j] = q->proc[j + 1];
 	}
+	q->proc[q->size - 1] = NULL;
 	q->size--;
-	q->proc[q->size] = NULL;
 
 	return temp;
 }
