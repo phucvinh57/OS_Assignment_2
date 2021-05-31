@@ -53,6 +53,8 @@ static struct page_table_t * get_page_table(
 	int i;
 	for (i = 0; i < seg_table->size; i++) {
 		// Enter your code here
+		if (seg_table->table[i].v_index == index)
+			return seg_table->table[i].pages;
 	}
 	return NULL;
 
@@ -87,6 +89,7 @@ static int translate(
 			 * to [p_index] field of page_table->table[i] to 
 			 * produce the correct physical address and save it to
 			 * [*physical_addr]  */
+			*physical_addr = (page_table->table[i].p_index << OFFSET_LEN) + offset;
 			return 1;
 		}
 	}
@@ -114,6 +117,14 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
 	 * For virtual memory space, check bp (break pointer).
 	 * */
 	
+	int num_pages_avail = 0;
+	for (int i = 0; i < NUM_PAGES; ++i) 
+		if (_mem_stat[i].proc == 0) ++num_pages_avail;
+
+	if ((num_pages_avail >= num_pages) && 
+		(proc->pc + num_pages * PAGE_SIZE < (1 << ADDRESS_SIZE)))
+		mem_avail = 1;
+	
 	if (mem_avail) {
 		/* We could allocate new memory region to the process */
 		ret_mem = proc->bp;
@@ -124,6 +135,12 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
 		 * 	- Add entries to segment table page tables of [proc]
 		 * 	  to ensure accesses to allocated memory slot is
 		 * 	  valid. */
+
+		for (int current_page = 0; current_page < num_pages; ++current_page) {
+			
+		}
+
+
 	}
 	pthread_mutex_unlock(&mem_lock);
 	return ret_mem;
