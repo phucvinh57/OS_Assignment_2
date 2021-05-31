@@ -31,8 +31,7 @@ struct pcb_t * get_proc(void) {
 	pthread_mutex_lock(&queue_lock);
 	if(empty(&ready_queue)) {
 		while(!empty(&run_queue)) {
-			struct pcb_t* temp = dequeue(&run_queue);
-			enqueue(&ready_queue, temp);
+			enqueue(&ready_queue, dequeue(&run_queue));
 		}
 	}
 	proc = dequeue(&ready_queue);
