@@ -12,6 +12,7 @@ static int alloc(struct pcb_t * proc, uint32_t size, uint32_t reg_index) {
 	if (addr == 0) {
 		return 1;
 	}else{
+		//register luu physical address truoc khi allocate.
 		proc->regs[reg_index] = addr;
 		return 0;
 	}
@@ -26,10 +27,13 @@ static int read(
 		uint32_t source, // Index of source register
 		uint32_t offset, // Source address = [source] + [offset]
 		uint32_t destination) { // Index of destination register
-	
+	//**Chu thich: 
+	//  - Source register chua dia chi (index) cua page can doc.
+	//  - Destination register chua dia chi (index) cua page can duoc luu
+	//  - read_mem: Luu gia tri tai dia chi source + offset, luu vao data.
 	BYTE data;
 	if (read_mem(proc->regs[source] + offset, proc,	&data)) {
-		proc->regs[destination] = data;
+		proc->regs[destination] += data;
 		return 0;		
 	}else{
 		return 1;
@@ -42,6 +46,9 @@ static int write(
 		uint32_t destination, // Index of destination register
 		uint32_t offset) { 	// Destination address =
 					// [destination] + [offset]
+	printf("Write-data: %d \n", (uint32_t)data);
+	printf("address: %d\n", proc->regs[destination]);
+
 	return write_mem(proc->regs[destination] + offset, proc, data);
 } 
 
@@ -52,6 +59,9 @@ int run(struct pcb_t * proc) {
 		return 1;
 	}
 	
+	//**Chu thich:
+	//  - State tra ve la 0 neu success, con lai la fault
+
 	struct inst_t ins = proc->code->text[proc->pc];
 	proc->pc++;
 	int stat = 1;
@@ -70,6 +80,7 @@ int run(struct pcb_t * proc) {
 		stat = read(proc, ins.arg_0, ins.arg_1, ins.arg_2);
 		break;
 	case WRITE:
+		printf("WRITE-LABEL: %d\n", (int)ins.arg_2);
 		stat = write(proc, ins.arg_0, ins.arg_1, ins.arg_2);
 		break;
 	default:

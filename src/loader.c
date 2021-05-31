@@ -34,6 +34,10 @@ struct pcb_t * load(const char * path) {
 	struct pcb_t * proc = (struct pcb_t * )malloc(sizeof(struct pcb_t));
 	proc->pid = avail_pid;
 	avail_pid++;
+	//**Chu thich: 
+	//  - seg_table_t duoc tao nhung empty, 
+	//    + size chua chac = 0 chua
+	//    + pages trong cac elements cua table bang NULL. 
 	proc->seg_table =
 		(struct seg_table_t*)malloc(sizeof(struct seg_table_t));
 	proc->bp = PAGE_SIZE;

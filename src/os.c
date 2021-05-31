@@ -92,6 +92,7 @@ static void * ld_routine(void * args) {
 		i++;
 		next_slot(timer_id);
 	}
+	
 	free(ld_processes.path);
 	free(ld_processes.start_time);
 	done = 1;
