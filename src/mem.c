@@ -53,9 +53,11 @@ static struct page_table_t * get_page_table(
 	int i;
 	for (i = 0; i < seg_table->size; i++) {
 		// Enter your code here
+		if(seg_table->table[i].v_index == index) {
+			return seg_table->table[i].pages;
+		}
 	}
 	return NULL;
-
 }
 
 /* Translate virtual address to physical address. If [virtual_addr] is valid,
@@ -87,6 +89,8 @@ static int translate(
 			 * to [p_index] field of page_table->table[i] to 
 			 * produce the correct physical address and save it to
 			 * [*physical_addr]  */
+			page_table->table[i].p_index = offset;
+			if(physical_addr) *physical_addr = page_table->table[i].p_index;
 			return 1;
 		}
 	}
@@ -113,6 +117,15 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
 	 * to know whether this page has been used by a process.
 	 * For virtual memory space, check bp (break pointer).
 	 * */
+
+	uint32_t num_free_pages = 0; // Count for number of free pages
+	for(int i = 0; i < NUM_PAGES; ++i) {
+		if(_mem_stat[i].proc == 0) num_free_pages++;
+	}
+	if(num_free_pages >= num_pages) {
+		if(num_pages * PAGE_SIZE + proc->bp <= RAM_SIZE)
+			mem_avail = 1;
+	}
 	
 	if (mem_avail) {
 		/* We could allocate new memory region to the process */
@@ -124,6 +137,31 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
 		 * 	- Add entries to segment table page tables of [proc]
 		 * 	  to ensure accesses to allocated memory slot is
 		 * 	  valid. */
+
+		int i = 0; // Index of the page which will be allocated
+		int idx = 0; // Iterator for _mem_stats
+
+		while(i < num_pages && idx < NUM_PAGES) {
+			if(_mem_stat[idx].proc == 0) {
+				/* Update _mem_stat */
+				_mem_stat[idx].proc = proc->pid;
+				_mem_stat[idx].index = i;
+				_mem_stat[idx].next = -1;
+				if(i > 0) _mem_stat[i - 1].next = idx;
+				
+				 /*Add entries to segment table page tables */
+				uint32_t virtual_addr = ret_mem + i * PAGE_SIZE;
+				uint32_t seg_idx = get_first_lv(virtual_addr);
+				uint32_t page_table_idx = get_second_lv(virtual_addr);
+				uint32_t offset = get_offset(virtual_addr);
+
+				proc->seg_table->table[seg_idx].v_index = seg_idx;
+				proc->seg_table->table[seg_idx].pages->table[page_table_idx].v_index = page_table_idx;
+				proc->seg_table->table[seg_idx].pages->table[page_table_idx].p_index = offset;
+				++i;
+			}
+			++idx;
+		}	
 	}
 	pthread_mutex_unlock(&mem_lock);
 	return ret_mem;
@@ -138,6 +176,9 @@ int free_mem(addr_t address, struct pcb_t * proc) {
 	 * 	  the process [proc].
 	 * 	- Remember to use lock to protect the memory from other
 	 * 	  processes.  */
+	pthread_mutex_lock(&mem_lock);
+	
+	pthread_mutex_unlock(&mem_lock);
 	return 0;
 }
 
