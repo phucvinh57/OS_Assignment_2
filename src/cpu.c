@@ -61,7 +61,6 @@ int run(struct pcb_t * proc) {
 	struct inst_t ins = proc->code->text[proc->pc];
 	proc->pc++;
 	int stat = 1;
-	printf("Process: pc = %d, code-size = %d\n", proc->pc, proc->code->size);
 	switch (ins.opcode) {
 	case CALC:
 		stat = calc(proc);
@@ -76,7 +75,6 @@ int run(struct pcb_t * proc) {
 		stat = read(proc, ins.arg_0, ins.arg_1, ins.arg_2);
 		break;
 	case WRITE:
-		printf("WRITE-LABEL: %d\n", (int)ins.arg_2);
 		stat = write(proc, ins.arg_0, ins.arg_1, ins.arg_2);
 		break;
 	default:

@@ -241,14 +241,6 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
 		}
 	}
 	pthread_mutex_unlock(&mem_lock);
-	printf("----------ALLOCATE------------------\n");
-	printf("Segment_table: %d\n", proc->seg_table->size);
-	for (int i = 0; i < proc->seg_table->size; ++i) {
-		printf("table %d: %d\n", i, proc->seg_table->table[i].pages->size);
-	}
-	printf("\n");
-	dump();
-	printf("\n");
 	return ret_mem;
 }
 
@@ -330,14 +322,6 @@ int free_mem(addr_t address, struct pcb_t * proc) {
 	}
 
 	pthread_mutex_unlock(&mem_lock);
-	printf("----------FREE---------------\n");
-	printf("Segment_table: %d\n", proc->seg_table->size);
-	for (int i = 0; i < proc->seg_table->size; ++i) {
-		printf("table %d: %d\n", i, proc->seg_table->table[i].pages->size);
-	}
-	printf("\n");
-	dump();
-	printf("\n");
 	return 0;
 }
 
@@ -355,9 +339,6 @@ int write_mem(addr_t address, struct pcb_t * proc, BYTE data) {
 	addr_t physical_addr;
 	if (translate(address, &physical_addr, proc)) {
 		_ram[physical_addr] = data;
-		printf("--------------------WRITE--------------------\n");
-		dump();
-		printf("\n");
 		return 0;
 	}else{
 		return 1;
