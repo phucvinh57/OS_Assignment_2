@@ -63,7 +63,7 @@ static struct page_table_t * get_page_table(
 	//  ! Chuong trinh chi dung neu seg_table lan dau khoi tao, 
 	//  seg_table->size == 0, neu segment->size > 0, page_table 
 	//  phai chac chan khong NULL.
-	for (int i = 0; i < seg_table->size; i++) {
+	for (int i = 0; i < seg_table->size; ++i) {
 		if (index == seg_table->table[i].v_index) {
 			return seg_table->table[i].pages;
 		}
@@ -120,7 +120,6 @@ static int translate(
 }
 
 addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
-	printf("Allocate: Begin\n");
 	pthread_mutex_lock(&mem_lock);
 	addr_t ret_mem = 0;
 	/* TODO: Allocate [size] byte in the memory for the
@@ -174,7 +173,8 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
 	if (mem_avail) {
 		/* We could allocate new memory region to the process */
 		//Tra ve physical address cua page dau tien:
-		ret_mem = indexOfAvailableFrame[0] << OFFSET_LEN;
+		//ret_mem = indexOfAvailableFrame[0] << OFFSET_LEN;
+		ret_mem = proc->bp;
 		proc->bp += num_pages * PAGE_SIZE;
 		/* Update status of physical pages which will be allocated
 		 * to [proc] in _mem_stat. Tasks to do:
@@ -200,23 +200,55 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
 			}
 		}
 
-		uint8_t segmentIndex, pageIndex;
+
+		//Update page table:
+		addr_t first_lv, second_lv;
+		struct page_table_t* page_table = NULL;
 		for (int i = 0; i < num_pages; ++i) {
-			segmentIndex = (lastVirtualAddressBeforUpdate >> 5) % SEGMENT_LEN;
-			pageIndex = lastVirtualAddressBeforUpdate % PAGE_LEN;
-			proc->seg_table->table[segmentIndex].v_index = segmentIndex;
-			if (proc->seg_table->table[segmentIndex].pages == NULL) {
-				proc->seg_table->table[segmentIndex].pages = 
-					(struct page_table_t*)malloc(sizeof(struct page_table_t));
+			/* The first layer index */
+			first_lv = get_first_lv(lastVirtualAddressBeforUpdate);
+			/* The second layer index */
+			second_lv = get_second_lv(lastVirtualAddressBeforUpdate);
+
+			//Duyet xem first layer index da co trong seg_table chua:
+			page_table = NULL;
+			for (int i = 0; i < proc->seg_table->size; ++i) {
+				if (first_lv == proc->seg_table->table[i].v_index) {
+					page_table = proc->seg_table->table[i].pages;
+				}
 			}
-			proc->seg_table->table[segmentIndex].pages->table[pageIndex].v_index = pageIndex;
-			proc->seg_table->table[segmentIndex].pages->table[pageIndex].p_index = indexOfAvailableFrame[i];
+
+			if (page_table == NULL) {
+				//page table v_index khong co trong first layer, them page_table nay vao first layer:
+				if (proc->seg_table->size == (1 << SEGMENT_LEN)) {
+					//Khong the add them table:
+					return -1;
+				}
+				
+				page_table = (struct page_table_t*)malloc(sizeof(struct page_table_t));
+				proc->seg_table->table[proc->seg_table->size].pages = page_table;					
+				proc->seg_table->table[proc->seg_table->size].v_index = first_lv;
+				proc->seg_table->size++;
+			}
+
+			//Them entries cho second layer:
+			page_table->table[page_table->size].v_index = second_lv;
+			page_table->table[page_table->size].p_index = indexOfAvailableFrame[i];
+			page_table->size++;
+
+			//Cap nhat cho page ket tiep:
 			lastVirtualAddressBeforUpdate += PAGE_SIZE;
 		}
 	}
 	pthread_mutex_unlock(&mem_lock);
-	printf("--------------DONE----------------\n");
+	printf("----------ALLOCATE------------------\n");
+	printf("Segment_table: %d\n", proc->seg_table->size);
+	for (int i = 0; i < proc->seg_table->size; ++i) {
+		printf("table %d: %d\n", i, proc->seg_table->table[i].pages->size);
+	}
+	printf("\n");
 	dump();
+	printf("\n");
 	return ret_mem;
 }
 
@@ -230,14 +262,22 @@ int free_mem(addr_t address, struct pcb_t * proc) {
 	 * 	- Remember to use lock to protect the memory from other
 	 * 	  processes.  */
 
-	// ********************************************
-	// ** Fix: free_mem nhan vao physical address:
-	// *******************************************
-	//Free trong _mem_state
+	//Translate virtual address to physical address:
 	pthread_mutex_lock(&mem_lock);
-	uint32_t indexInMemState = address >> OFFSET_LEN;
-	int temp = _mem_stat[indexInMemState].index;
+	addr_t physical_addr;
+	int result = translate(address, &physical_addr, proc);
+	if (result == 0) {
+		//Invalid virtual address
+		return 0;
+	}
+
+
+
+	//Free trong _mem_state
+	uint32_t indexInMemState = physical_addr >> OFFSET_LEN;
+	int temp, numberOfPageToDelete = 0;
 	while (indexInMemState != -1) {
+		numberOfPageToDelete++;
 		temp = _mem_stat[indexInMemState].next;
 		_mem_stat[indexInMemState].proc = 0;
 		_mem_stat[indexInMemState].index = -1;
@@ -246,32 +286,82 @@ int free_mem(addr_t address, struct pcb_t * proc) {
 	}
 
 	//TODO:Free in page table:
-	// /* The first layer index */
-	addr_t first_lv = get_first_lv(address);
-	// /* The second layer index */
-	addr_t second_lv = get_second_lv(address);
-	// //Clear v-index to p-index
-	proc->seg_table->table[first_lv].pages->table[second_lv].p_index = 0;
-	
+	/* The first layer index */
+	int address_copy = address;
+	for (int i = 0; i < numberOfPageToDelete; ++i) {
+		addr_t first_lv = get_first_lv(address_copy);
+		// /* The second layer index */
+		addr_t second_lv = get_second_lv(address_copy);
+		
+		int indexFirstLayer = -1;
+		int indexSecondLayer = -1;
+		struct page_table_t* page_table;
+		//Time page_table can xoa khoi danh sach:
+		for (int i = 0; i < proc->seg_table->size; ++i) {
+			if (first_lv == proc->seg_table->table[i].v_index) {
+				indexFirstLayer = i;
+				page_table = proc->seg_table->table[i].pages;
+			}
+		}
 
-	//Dummy code:
-	addr_t dummyPhysicAddress;
-	translate(address, &dummyPhysicAddress, proc);
+		//Tim entries second level tuong ung trong page table:
+		for (int i = 0; i < page_table->size; ++i) {
+			if (second_lv == page_table->table[i].v_index) {
+				indexSecondLayer = i;
+			}
+		}
+
+		//Loai bo entries trong second layer ra khoi danh sach:
+		for (int i = indexSecondLayer; i < page_table->size - 1; ++i) {
+			page_table->table[i] = page_table->table[i + 1];
+		} 
+		page_table->size--;
+
+		//Neu page_table->size  == 0, loai bo entries cua first layer ra khoi danh sach
+		if (page_table->size == 0) {
+			for (int i = indexFirstLayer; i < proc->seg_table->size; ++i) {
+				proc->seg_table->table[i] = proc->seg_table->table[i + 1];
+			}
+			proc->seg_table->size--;
+		}
+		
+		//Cap nhat cho page tiep theo.
+		address_copy += PAGE_SIZE;
+	}
 
 	pthread_mutex_unlock(&mem_lock);
+	printf("----------FREE---------------\n");
+	printf("Segment_table: %d\n", proc->seg_table->size);
+	for (int i = 0; i < proc->seg_table->size; ++i) {
+		printf("table %d: %d\n", i, proc->seg_table->table[i].pages->size);
+	}
+	printf("\n");
+	dump();
+	printf("\n");
 	return 0;
 }
 
 int read_mem(addr_t address, struct pcb_t * proc, BYTE * data) {
-	*data = _ram[address];
-	return 0;
+	addr_t physical_addr;
+	if (translate(address, &physical_addr, proc)) {
+		*data = _ram[physical_addr];
+		return 0;
+	}else{
+		return 1;
+	}
 }
 
 int write_mem(addr_t address, struct pcb_t * proc, BYTE data) {
-	printf("data: %d\n", (uint32_t)(data));
-	printf("address: %d\n", address);
-	_ram[address] = data;
-	return 1;
+	addr_t physical_addr;
+	if (translate(address, &physical_addr, proc)) {
+		_ram[physical_addr] = data;
+		printf("--------------------WRITE--------------------\n");
+		dump();
+		printf("\n");
+		return 0;
+	}else{
+		return 1;
+	}
 }
 
 void dump(void) {

@@ -46,16 +46,12 @@ static int write(
 		uint32_t destination, // Index of destination register
 		uint32_t offset) { 	// Destination address =
 					// [destination] + [offset]
-	printf("Write-data: %d \n", (uint32_t)data);
-	printf("address: %d\n", proc->regs[destination]);
-
 	return write_mem(proc->regs[destination] + offset, proc, data);
 } 
 
 int run(struct pcb_t * proc) {
 	/* Check if Program Counter point to the proper instruction */
 	if (proc->pc >= proc->code->size) {
-		printf("PC is full\n");
 		return 1;
 	}
 	
