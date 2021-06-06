@@ -222,13 +222,27 @@ int free_mem(addr_t address, struct pcb_t * proc) {
 		while(pages->table[i].v_index != page_table_idx) {
 			++i;
 		}
-		for(int j = i; j < pages->size - 1; j++) {
-			pages->table[j].p_index = pages->table[j + 1].p_index;
-			pages->table[j].v_index = pages->table[j + 1].v_index;
-		}
-
+		// for(int j = i; j < pages->size - 1; j++) {
+		// 	pages->table[j].p_index = pages->table[j + 1].p_index;
+		// 	pages->table[j].v_index = pages->table[j + 1].v_index;
+		// }
+		pages->table[i].p_index = pages->table[pages->size - 1].p_index;
+		pages->table[i].v_index = pages->table[pages->size - 1].v_index;
+		
 		pages->size--;
 		
+		if(pages->size == 0) {
+			int i = 0;
+			for(; i < proc->seg_table->size; ++i) {
+				if(proc->seg_table->table[i].v_index == seg_idx) 
+					break;
+			}
+			proc->seg_table->table[i] = proc->seg_table->table[
+				proc->seg_table->size - 1
+			];
+			proc->seg_table->size--;
+			free(pages);
+		}
 		virtual_addr += PAGE_SIZE;
 		p_index = temp;
 	}

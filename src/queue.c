@@ -31,9 +31,8 @@ struct pcb_t * dequeue(struct queue_t * q) {
 			index = i;
 		}
 	}
-	for(int j = index; j < q->size - 1; j++) {
-		q->proc[j] = q->proc[j + 1];
-	}
+	
+	q->proc[index] = q->proc[q->size - 1];
 	q->proc[q->size - 1] = NULL;
 	q->size--;
 
