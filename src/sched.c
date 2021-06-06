@@ -14,6 +14,10 @@ int queue_empty(void) {
 void init_scheduler(void) {
 	ready_queue.size = 0;
 	run_queue.size = 0;
+	for(int i = 0; i < MAX_QUEUE_SIZE; ++i) {
+		ready_queue.proc[i] = NULL;
+		run_queue.proc[i] = NULL;
+	}
 	pthread_mutex_init(&queue_lock, NULL);
 }
 
@@ -32,6 +36,7 @@ struct pcb_t * get_proc(void) {
 	}
 	proc = dequeue(&ready_queue);
 	pthread_mutex_unlock(&queue_lock);
+
 	return proc;
 }
 

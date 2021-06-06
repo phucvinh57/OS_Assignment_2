@@ -15,15 +15,15 @@ static uint32_t avail_pid = 1;
 static enum ins_opcode_t get_opcode(char * opt) {
 	if (!strcmp(opt, OPT_CALC)) {
 		return CALC;
-	}else if (!strcmp(opt, OPT_ALLOC)) {
+	} else if (!strcmp(opt, OPT_ALLOC)) {
 		return ALLOC;
-	}else if (!strcmp(opt, OPT_FREE)) {
+	} else if (!strcmp(opt, OPT_FREE)) {
 		return FREE;
-	}else if (!strcmp(opt, OPT_READ)) {
+	} else if (!strcmp(opt, OPT_READ)) {
 		return READ;
-	}else if (!strcmp(opt, OPT_WRITE)) {
+	} else if (!strcmp(opt, OPT_WRITE)) {
 		return WRITE;
-	}else{
+	} else{
 		printf("Opcode: %s\n", opt);
 		exit(1);
 	}
