@@ -14,10 +14,6 @@ int queue_empty(void) {
 void init_scheduler(void) {
 	ready_queue.size = 0;
 	run_queue.size = 0;
-	for(int i = 0; i < MAX_QUEUE_SIZE; ++i) {
-		ready_queue.proc[i] = NULL;
-		run_queue.proc[i] = NULL;
-	}
 	pthread_mutex_init(&queue_lock, NULL);
 }
 
@@ -28,15 +24,16 @@ struct pcb_t * get_proc(void) {
 	 * [ready_queue] and return the highest priority one.
 	 * Remember to use lock to protect the queue.
 	 * */
+	
+	// if empty, push all processes in [run_queue] back to [ready_queue]
 	pthread_mutex_lock(&queue_lock);
-	if(empty(&ready_queue)) {
-		while(!empty(&run_queue)) {
+	if (empty(&ready_queue))
+		while (!empty(&run_queue))
 			enqueue(&ready_queue, dequeue(&run_queue));
-		}
-	}
+
+	// return the highest priority process from ready_queue	
 	proc = dequeue(&ready_queue);
 	pthread_mutex_unlock(&queue_lock);
-
 	return proc;
 }
 
